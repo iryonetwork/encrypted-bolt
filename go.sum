@@ -1,0 +1,8 @@
+github.com/iryonetwork/wwm v0.4.4 h1:HtoKxdlytC2/tWTAGzAsK7HNIMJO0b3elrSweul22u8=
+github.com/iryonetwork/wwm v0.4.4/go.mod h1:341cu1vpn+nURU9dgZcUvw+ApUnymuLyDAw66PVY5X8=
+github.com/rs/zerolog v1.9.1 h1:AjV/SFRF0+gEa6rSjkh0Eji/DnkrJKVpPho6SW5g4mU=
+github.com/rs/zerolog v1.9.1/go.mod h1:YbFCdg8HfsridGWAh22vktObvhZbQsZXe4/zB0OKkWU=
+go.etcd.io/bbolt v1.3.1-etcd.8 h1:6J7QAKqfFBGnU80KRnuQxfjjeE5xAGE/qB810I3FQHQ=
+go.etcd.io/bbolt v1.3.1-etcd.8/go.mod h1:IbVyRI1SCnLcuJnV2u8VeU0CEYM7e686BmAb1XKL+uU=
+golang.org/x/sys v0.0.0-20181022134430-8a28ead16f52 h1:iuRaATs1WHBt1WKav1CczVukq8i0T8geqpAMCUAnT+o=
+golang.org/x/sys v0.0.0-20181022134430-8a28ead16f52/go.mod h1:STP8DvDyc/dI5b8T5hshtkjS+E42TnysNCUPdjciGhY=

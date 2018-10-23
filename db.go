@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/coreos/bbolt"
+	bolt "go.etcd.io/bbolt"
 )
 
 type DB struct {

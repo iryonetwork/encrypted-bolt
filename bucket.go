@@ -5,7 +5,7 @@ import (
 	"crypto/rand"
 	"io"
 
-	"github.com/coreos/bbolt"
+	bolt "go.etcd.io/bbolt"
 )
 
 type b struct {

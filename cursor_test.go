@@ -11,7 +11,7 @@ import (
 	"testing"
 	"testing/quick"
 
-	bolt "github.com/iryonetwork/wwm/storage/encrypted_bolt"
+	bolt "github.com/iryonetwork/encrypted-bolt"
 )
 
 // Ensure that a cursor can return a reference to the bucket that created it.

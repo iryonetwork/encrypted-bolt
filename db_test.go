@@ -18,8 +18,7 @@ import (
 	"time"
 	"unsafe"
 
-	"github.com/iryonetwork/wwm/log/errorChecker"
-	bolt "github.com/iryonetwork/wwm/storage/encrypted_bolt"
+	bolt "github.com/iryonetwork/encrypted-bolt"
 )
 
 var statsFlag = flag.Bool("stats", false, "show performance stats")
@@ -617,8 +616,12 @@ func TestDB_Concurrent_WriteTo(t *testing.T) {
 		}
 		time.Sleep(time.Duration(rand.Intn(20)+1) * time.Millisecond)
 		_, err = tx.WriteTo(f)
-		errorChecker.FatalTesting(t, err)
-		errorChecker.FatalTesting(t, tx.Rollback())
+		if err != nil {
+			fatal(t, err)
+		}
+		if err = tx.Rollback(); err != nil {
+			fatal(t, err)
+		}
 		f.Close()
 		snap := &DB{nil, f.Name(), o, testKey}
 		snap.MustReopen()
@@ -1740,4 +1743,11 @@ func u64tob(v uint64) []byte {
 	b := make([]byte, 8)
 	binary.BigEndian.PutUint64(b, v)
 	return b
+}
+
+// As t.Fatalf() is not goroutine safe, use this in gouroutines
+func fatal(t *testing.T, err error) {
+	if err != nil {
+		t.Fatalf("Error: %s", err)
+	}
 }

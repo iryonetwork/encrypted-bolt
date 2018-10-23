@@ -3,7 +3,7 @@ package bolt
 import (
 	"crypto/cipher"
 
-	"github.com/coreos/bbolt"
+	bolt "go.etcd.io/bbolt"
 )
 
 type Tx struct {

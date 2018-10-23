@@ -8,7 +8,7 @@ import (
 	"os"
 	"testing"
 
-	bolt "github.com/iryonetwork/wwm/storage/encrypted_bolt"
+	bolt "github.com/iryonetwork/encrypted-bolt"
 )
 
 // TestTx_Check_ReadOnly tests consistency checking on a ReadOnly database.
@@ -31,7 +31,7 @@ func TestTx_Check_ReadOnly(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	readOnlyDB, err := bolt.Open(db.k, db.f, 0666, &bolt.Options{ReadOnly: true})
+	readOnlyDB, err := bolt.Open(testKey, db.f, 0666, &bolt.Options{ReadOnly: true})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -56,6 +56,11 @@ func TestTx_Check_ReadOnly(t *testing.T) {
 		if err := <-errc; err != nil {
 			t.Fatal(err)
 		}
+	}
+	// Close the view transaction
+	err = tx.Rollback()
+	if err != nil {
+		t.Fatal(err)
 	}
 }
 
@@ -108,6 +113,11 @@ func TestTx_Commit_ErrTxNotWritable(t *testing.T) {
 		t.Fatal(err)
 	}
 	if err := tx.Commit(); err != bolt.ErrTxNotWritable {
+		t.Fatal(err)
+	}
+	// Close the view transaction
+	err = tx.Rollback()
+	if err != nil {
 		t.Fatal(err)
 	}
 }
@@ -553,7 +563,7 @@ func TestTx_CopyFile(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	db2, err := bolt.Open(db.k, path, 0600, nil)
+	db2, err := bolt.Open(testKey, path, 0600, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

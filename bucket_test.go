@@ -6,13 +6,14 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	//"math/rand"
 	"os"
 	"strconv"
 	"strings"
 	"testing"
 	"testing/quick"
 
-	bolt "github.com/iryonetwork/wwm/storage/encrypted_bolt"
+	bolt "github.com/iryonetwork/encrypted-bolt"
 )
 
 // Ensure that a bucket that gets a non-existent key returns nil.
@@ -1182,463 +1183,460 @@ func TestBucket_Put_ValueTooLarge(t *testing.T) {
 	}
 }
 
-/*
-Skip this for now
+// // Ensure a bucket can calculate stats.
+// func TestBucket_Stats(t *testing.T) {
+// 	db := MustOpenDB()
+// 	defer db.MustClose()
 
-// Ensure a bucket can calculate stats.
-func TestBucket_Stats(t *testing.T) {
-	db := MustOpenDB()
-	defer db.MustClose()
+// 	// Add bucket with fewer keys but one big value.
+// 	bigKey := []byte("really-big-value")
+// 	for i := 0; i < 500; i++ {
+// 		if err := db.Update(func(tx *bolt.Tx) error {
+// 			b, err := tx.CreateBucketIfNotExists([]byte("woojits"))
+// 			if err != nil {
+// 				t.Fatal(err)
+// 			}
 
-	// Add bucket with fewer keys but one big value.
-	bigKey := []byte("really-big-value")
-	for i := 0; i < 500; i++ {
-		if err := db.Update(func(tx *bolt.Tx) error {
-			b, err := tx.CreateBucketIfNotExists([]byte("woojits"))
-			if err != nil {
-				t.Fatal(err)
-			}
+// 			if err := b.Put([]byte(fmt.Sprintf("%03d", i)), []byte(strconv.Itoa(i))); err != nil {
+// 				t.Fatal(err)
+// 			}
+// 			return nil
+// 		}); err != nil {
+// 			t.Fatal(err)
+// 		}
+// 	}
+// 	if err := db.Update(func(tx *bolt.Tx) error {
+// 		if err := tx.Bucket([]byte("woojits")).Put(bigKey, []byte(strings.Repeat("*", 10000))); err != nil {
+// 			t.Fatal(err)
+// 		}
+// 		return nil
+// 	}); err != nil {
+// 		t.Fatal(err)
+// 	}
 
-			if err := b.Put([]byte(fmt.Sprintf("%03d", i)), []byte(strconv.Itoa(i))); err != nil {
-				t.Fatal(err)
-			}
-			return nil
-		}); err != nil {
-			t.Fatal(err)
-		}
-	}
-	if err := db.Update(func(tx *bolt.Tx) error {
-		if err := tx.Bucket([]byte("woojits")).Put(bigKey, []byte(strings.Repeat("*", 10000))); err != nil {
-			t.Fatal(err)
-		}
-		return nil
-	}); err != nil {
-		t.Fatal(err)
-	}
+// 	db.MustCheck()
 
-	db.MustCheck()
+// 	if err := db.View(func(tx *bolt.Tx) error {
+// 		stats := tx.Bucket([]byte("woojits")).Stats()
+// 		if stats.BranchPageN != 1 {
+// 			t.Fatalf("unexpected BranchPageN: %d", stats.BranchPageN)
+// 		} else if stats.BranchOverflowN != 0 {
+// 			t.Fatalf("unexpected BranchOverflowN: %d", stats.BranchOverflowN)
+// 		} else if stats.LeafPageN != 7 {
+// 			t.Fatalf("unexpected LeafPageN: %d", stats.LeafPageN)
+// 		} else if stats.LeafOverflowN != 2 {
+// 			t.Fatalf("unexpected LeafOverflowN: %d", stats.LeafOverflowN)
+// 		} else if stats.KeyN != 501 {
+// 			t.Fatalf("unexpected KeyN: %d", stats.KeyN)
+// 		} else if stats.Depth != 2 {
+// 			t.Fatalf("unexpected Depth: %d", stats.Depth)
+// 		}
 
-	if err := db.View(func(tx *bolt.Tx) error {
-		stats := tx.Bucket([]byte("woojits")).Stats()
-		if stats.BranchPageN != 1 {
-			t.Fatalf("unexpected BranchPageN: %d", stats.BranchPageN)
-		} else if stats.BranchOverflowN != 0 {
-			t.Fatalf("unexpected BranchOverflowN: %d", stats.BranchOverflowN)
-		} else if stats.LeafPageN != 7 {
-			t.Fatalf("unexpected LeafPageN: %d", stats.LeafPageN)
-		} else if stats.LeafOverflowN != 2 {
-			t.Fatalf("unexpected LeafOverflowN: %d", stats.LeafOverflowN)
-		} else if stats.KeyN != 501 {
-			t.Fatalf("unexpected KeyN: %d", stats.KeyN)
-		} else if stats.Depth != 2 {
-			t.Fatalf("unexpected Depth: %d", stats.Depth)
-		}
+// 		branchInuse := 16     // branch page header
+// 		branchInuse += 7 * 16 // branch elements
+// 		branchInuse += 7 * 3  // branch keys (6 3-byte keys)
+// 		if stats.BranchInuse != branchInuse {
+// 			t.Fatalf("unexpected BranchInuse: %d", stats.BranchInuse)
+// 		}
 
-		branchInuse := 16     // branch page header
-		branchInuse += 7 * 16 // branch elements
-		branchInuse += 7 * 3  // branch keys (6 3-byte keys)
-		if stats.BranchInuse != branchInuse {
-			t.Fatalf("unexpected BranchInuse: %d", stats.BranchInuse)
-		}
+// 		leafInuse := 7 * 16                      // leaf page header
+// 		leafInuse += 501 * 16                    // leaf elements
+// 		leafInuse += 500*3 + len(bigKey)         // leaf keys
+// 		leafInuse += 1*10 + 2*90 + 3*400 + 10000 // leaf values
+// 		if stats.LeafInuse != leafInuse {
+// 			t.Fatalf("unexpected LeafInuse: %d", stats.LeafInuse)
+// 		}
 
-		leafInuse := 7 * 16                      // leaf page header
-		leafInuse += 501 * 16                    // leaf elements
-		leafInuse += 500*3 + len(bigKey)         // leaf keys
-		leafInuse += 1*10 + 2*90 + 3*400 + 10000 // leaf values
-		if stats.LeafInuse != leafInuse {
-			t.Fatalf("unexpected LeafInuse: %d", stats.LeafInuse)
-		}
+// 		// Only check allocations for 4KB pages.
+// 		if db.Info().PageSize == 4096 {
+// 			if stats.BranchAlloc != 4096 {
+// 				t.Fatalf("unexpected BranchAlloc: %d", stats.BranchAlloc)
+// 			} else if stats.LeafAlloc != 36864 {
+// 				t.Fatalf("unexpected LeafAlloc: %d", stats.LeafAlloc)
+// 			}
+// 		}
 
-		// Only check allocations for 4KB pages.
-		if db.Info().PageSize == 4096 {
-			if stats.BranchAlloc != 4096 {
-				t.Fatalf("unexpected BranchAlloc: %d", stats.BranchAlloc)
-			} else if stats.LeafAlloc != 36864 {
-				t.Fatalf("unexpected LeafAlloc: %d", stats.LeafAlloc)
-			}
-		}
+// 		if stats.BucketN != 1 {
+// 			t.Fatalf("unexpected BucketN: %d", stats.BucketN)
+// 		} else if stats.InlineBucketN != 0 {
+// 			t.Fatalf("unexpected InlineBucketN: %d", stats.InlineBucketN)
+// 		} else if stats.InlineBucketInuse != 0 {
+// 			t.Fatalf("unexpected InlineBucketInuse: %d", stats.InlineBucketInuse)
+// 		}
 
-		if stats.BucketN != 1 {
-			t.Fatalf("unexpected BucketN: %d", stats.BucketN)
-		} else if stats.InlineBucketN != 0 {
-			t.Fatalf("unexpected InlineBucketN: %d", stats.InlineBucketN)
-		} else if stats.InlineBucketInuse != 0 {
-			t.Fatalf("unexpected InlineBucketInuse: %d", stats.InlineBucketInuse)
-		}
+// 		return nil
+// 	}); err != nil {
+// 		t.Fatal(err)
+// 	}
+// }
 
-		return nil
-	}); err != nil {
-		t.Fatal(err)
-	}
-}
+// // Ensure a bucket with random insertion utilizes fill percentage correctly.
+// func TestBucket_Stats_RandomFill(t *testing.T) {
+// 	if testing.Short() {
+// 		t.Skip("skipping test in short mode.")
+// 	} else if os.Getpagesize() != 4096 {
+// 		t.Skip("invalid page size for test")
+// 	}
 
-// Ensure a bucket with random insertion utilizes fill percentage correctly.
-func TestBucket_Stats_RandomFill(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping test in short mode.")
-	} else if os.Getpagesize() != 4096 {
-		t.Skip("invalid page size for test")
-	}
+// 	db := MustOpenDB()
+// 	defer db.MustClose()
 
-	db := MustOpenDB()
-	defer db.MustClose()
+// 	// Add a set of values in random order. It will be the same random
+// 	// order so we can maintain consistency between test runs.
+// 	var count int
+// 	rand := rand.New(rand.NewSource(42))
+// 	for _, i := range rand.Perm(1000) {
+// 		if err := db.Update(func(tx *bolt.Tx) error {
+// 			b, err := tx.CreateBucketIfNotExists([]byte("woojits"))
+// 			if err != nil {
+// 				t.Fatal(err)
+// 			}
+// 			b.FillPercent = 0.9
+// 			for _, j := range rand.Perm(100) {
+// 				index := (j * 10000) + i
+// 				if err := b.Put([]byte(fmt.Sprintf("%d000000000000000", index)), []byte("0000000000")); err != nil {
+// 					t.Fatal(err)
+// 				}
+// 				count++
+// 			}
+// 			return nil
+// 		}); err != nil {
+// 			t.Fatal(err)
+// 		}
+// 	}
 
-	// Add a set of values in random order. It will be the same random
-	// order so we can maintain consistency between test runs.
-	var count int
-	rand := rand.New(rand.NewSource(42))
-	for _, i := range rand.Perm(1000) {
-		if err := db.Update(func(tx *bolt.Tx) error {
-			b, err := tx.CreateBucketIfNotExists([]byte("woojits"))
-			if err != nil {
-				t.Fatal(err)
-			}
-			b.FillPercent = 0.9
-			for _, j := range rand.Perm(100) {
-				index := (j * 10000) + i
-				if err := b.Put([]byte(fmt.Sprintf("%d000000000000000", index)), []byte("0000000000")); err != nil {
-					t.Fatal(err)
-				}
-				count++
-			}
-			return nil
-		}); err != nil {
-			t.Fatal(err)
-		}
-	}
+// 	db.MustCheck()
 
-	db.MustCheck()
+// 	if err := db.View(func(tx *bolt.Tx) error {
+// 		stats := tx.Bucket([]byte("woojits")).Stats()
+// 		if stats.KeyN != 100000 {
+// 			t.Fatalf("unexpected KeyN: %d", stats.KeyN)
+// 		}
 
-	if err := db.View(func(tx *bolt.Tx) error {
-		stats := tx.Bucket([]byte("woojits")).Stats()
-		if stats.KeyN != 100000 {
-			t.Fatalf("unexpected KeyN: %d", stats.KeyN)
-		}
+// 		if stats.BranchPageN != 98 {
+// 			t.Fatalf("unexpected BranchPageN: %d", stats.BranchPageN)
+// 		} else if stats.BranchOverflowN != 0 {
+// 			t.Fatalf("unexpected BranchOverflowN: %d", stats.BranchOverflowN)
+// 		} else if stats.BranchInuse != 130984 {
+// 			t.Fatalf("unexpected BranchInuse: %d", stats.BranchInuse)
+// 		} else if stats.BranchAlloc != 401408 {
+// 			t.Fatalf("unexpected BranchAlloc: %d", stats.BranchAlloc)
+// 		}
 
-		if stats.BranchPageN != 98 {
-			t.Fatalf("unexpected BranchPageN: %d", stats.BranchPageN)
-		} else if stats.BranchOverflowN != 0 {
-			t.Fatalf("unexpected BranchOverflowN: %d", stats.BranchOverflowN)
-		} else if stats.BranchInuse != 130984 {
-			t.Fatalf("unexpected BranchInuse: %d", stats.BranchInuse)
-		} else if stats.BranchAlloc != 401408 {
-			t.Fatalf("unexpected BranchAlloc: %d", stats.BranchAlloc)
-		}
+// 		if stats.LeafPageN != 3412 {
+// 			t.Fatalf("unexpected LeafPageN: %d", stats.LeafPageN)
+// 		} else if stats.LeafOverflowN != 0 {
+// 			t.Fatalf("unexpected LeafOverflowN: %d", stats.LeafOverflowN)
+// 		} else if stats.LeafInuse != 4742482 {
+// 			t.Fatalf("unexpected LeafInuse: %d", stats.LeafInuse)
+// 		} else if stats.LeafAlloc != 13975552 {
+// 			t.Fatalf("unexpected LeafAlloc: %d", stats.LeafAlloc)
+// 		}
+// 		return nil
+// 	}); err != nil {
+// 		t.Fatal(err)
+// 	}
+// }
 
-		if stats.LeafPageN != 3412 {
-			t.Fatalf("unexpected LeafPageN: %d", stats.LeafPageN)
-		} else if stats.LeafOverflowN != 0 {
-			t.Fatalf("unexpected LeafOverflowN: %d", stats.LeafOverflowN)
-		} else if stats.LeafInuse != 4742482 {
-			t.Fatalf("unexpected LeafInuse: %d", stats.LeafInuse)
-		} else if stats.LeafAlloc != 13975552 {
-			t.Fatalf("unexpected LeafAlloc: %d", stats.LeafAlloc)
-		}
-		return nil
-	}); err != nil {
-		t.Fatal(err)
-	}
-}
+// // Ensure a bucket can calculate stats.
+// func TestBucket_Stats_Small(t *testing.T) {
+// 	db := MustOpenDB()
+// 	defer db.MustClose()
 
-// Ensure a bucket can calculate stats.
-func TestBucket_Stats_Small(t *testing.T) {
-	db := MustOpenDB()
-	defer db.MustClose()
+// 	if err := db.Update(func(tx *bolt.Tx) error {
+// 		// Add a bucket that fits on a single root leaf.
+// 		b, err := tx.CreateBucket([]byte("whozawhats"))
+// 		if err != nil {
+// 			t.Fatal(err)
+// 		}
+// 		if err := b.Put([]byte("foo"), []byte("bar")); err != nil {
+// 			t.Fatal(err)
+// 		}
 
-	if err := db.Update(func(tx *bolt.Tx) error {
-		// Add a bucket that fits on a single root leaf.
-		b, err := tx.CreateBucket([]byte("whozawhats"))
-		if err != nil {
-			t.Fatal(err)
-		}
-		if err := b.Put([]byte("foo"), []byte("bar")); err != nil {
-			t.Fatal(err)
-		}
+// 		return nil
+// 	}); err != nil {
+// 		t.Fatal(err)
+// 	}
 
-		return nil
-	}); err != nil {
-		t.Fatal(err)
-	}
+// 	db.MustCheck()
 
-	db.MustCheck()
+// 	if err := db.View(func(tx *bolt.Tx) error {
+// 		b := tx.Bucket([]byte("whozawhats"))
+// 		stats := b.Stats()
+// 		if stats.BranchPageN != 0 {
+// 			t.Fatalf("unexpected BranchPageN: %d", stats.BranchPageN)
+// 		} else if stats.BranchOverflowN != 0 {
+// 			t.Fatalf("unexpected BranchOverflowN: %d", stats.BranchOverflowN)
+// 		} else if stats.LeafPageN != 0 {
+// 			t.Fatalf("unexpected LeafPageN: %d", stats.LeafPageN)
+// 		} else if stats.LeafOverflowN != 0 {
+// 			t.Fatalf("unexpected LeafOverflowN: %d", stats.LeafOverflowN)
+// 		} else if stats.KeyN != 1 {
+// 			t.Fatalf("unexpected KeyN: %d", stats.KeyN)
+// 		} else if stats.Depth != 1 {
+// 			t.Fatalf("unexpected Depth: %d", stats.Depth)
+// 		} else if stats.BranchInuse != 0 {
+// 			t.Fatalf("unexpected BranchInuse: %d", stats.BranchInuse)
+// 		} else if stats.LeafInuse != 0 {
+// 			t.Fatalf("unexpected LeafInuse: %d", stats.LeafInuse)
+// 		}
 
-	if err := db.View(func(tx *bolt.Tx) error {
-		b := tx.Bucket([]byte("whozawhats"))
-		stats := b.Stats()
-		if stats.BranchPageN != 0 {
-			t.Fatalf("unexpected BranchPageN: %d", stats.BranchPageN)
-		} else if stats.BranchOverflowN != 0 {
-			t.Fatalf("unexpected BranchOverflowN: %d", stats.BranchOverflowN)
-		} else if stats.LeafPageN != 0 {
-			t.Fatalf("unexpected LeafPageN: %d", stats.LeafPageN)
-		} else if stats.LeafOverflowN != 0 {
-			t.Fatalf("unexpected LeafOverflowN: %d", stats.LeafOverflowN)
-		} else if stats.KeyN != 1 {
-			t.Fatalf("unexpected KeyN: %d", stats.KeyN)
-		} else if stats.Depth != 1 {
-			t.Fatalf("unexpected Depth: %d", stats.Depth)
-		} else if stats.BranchInuse != 0 {
-			t.Fatalf("unexpected BranchInuse: %d", stats.BranchInuse)
-		} else if stats.LeafInuse != 0 {
-			t.Fatalf("unexpected LeafInuse: %d", stats.LeafInuse)
-		}
+// 		if db.Info().PageSize == 4096 {
+// 			if stats.BranchAlloc != 0 {
+// 				t.Fatalf("unexpected BranchAlloc: %d", stats.BranchAlloc)
+// 			} else if stats.LeafAlloc != 0 {
+// 				t.Fatalf("unexpected LeafAlloc: %d", stats.LeafAlloc)
+// 			}
+// 		}
 
-		if db.Info().PageSize == 4096 {
-			if stats.BranchAlloc != 0 {
-				t.Fatalf("unexpected BranchAlloc: %d", stats.BranchAlloc)
-			} else if stats.LeafAlloc != 0 {
-				t.Fatalf("unexpected LeafAlloc: %d", stats.LeafAlloc)
-			}
-		}
+// 		if stats.BucketN != 1 {
+// 			t.Fatalf("unexpected BucketN: %d", stats.BucketN)
+// 		} else if stats.InlineBucketN != 1 {
+// 			t.Fatalf("unexpected InlineBucketN: %d", stats.InlineBucketN)
+// 		} else if stats.InlineBucketInuse != 16+16+6 {
+// 			t.Fatalf("unexpected InlineBucketInuse: %d", stats.InlineBucketInuse)
+// 		}
 
-		if stats.BucketN != 1 {
-			t.Fatalf("unexpected BucketN: %d", stats.BucketN)
-		} else if stats.InlineBucketN != 1 {
-			t.Fatalf("unexpected InlineBucketN: %d", stats.InlineBucketN)
-		} else if stats.InlineBucketInuse != 16+16+6 {
-			t.Fatalf("unexpected InlineBucketInuse: %d", stats.InlineBucketInuse)
-		}
+// 		return nil
+// 	}); err != nil {
+// 		t.Fatal(err)
+// 	}
+// }
 
-		return nil
-	}); err != nil {
-		t.Fatal(err)
-	}
-}
+// func TestBucket_Stats_EmptyBucket(t *testing.T) {
+// 	db := MustOpenDB()
+// 	defer db.MustClose()
 
-func TestBucket_Stats_EmptyBucket(t *testing.T) {
-	db := MustOpenDB()
-	defer db.MustClose()
+// 	if err := db.Update(func(tx *bolt.Tx) error {
+// 		// Add a bucket that fits on a single root leaf.
+// 		if _, err := tx.CreateBucket([]byte("whozawhats")); err != nil {
+// 			t.Fatal(err)
+// 		}
+// 		return nil
+// 	}); err != nil {
+// 		t.Fatal(err)
+// 	}
 
-	if err := db.Update(func(tx *bolt.Tx) error {
-		// Add a bucket that fits on a single root leaf.
-		if _, err := tx.CreateBucket([]byte("whozawhats")); err != nil {
-			t.Fatal(err)
-		}
-		return nil
-	}); err != nil {
-		t.Fatal(err)
-	}
+// 	db.MustCheck()
 
-	db.MustCheck()
+// 	if err := db.View(func(tx *bolt.Tx) error {
+// 		b := tx.Bucket([]byte("whozawhats"))
+// 		stats := b.Stats()
+// 		if stats.BranchPageN != 0 {
+// 			t.Fatalf("unexpected BranchPageN: %d", stats.BranchPageN)
+// 		} else if stats.BranchOverflowN != 0 {
+// 			t.Fatalf("unexpected BranchOverflowN: %d", stats.BranchOverflowN)
+// 		} else if stats.LeafPageN != 0 {
+// 			t.Fatalf("unexpected LeafPageN: %d", stats.LeafPageN)
+// 		} else if stats.LeafOverflowN != 0 {
+// 			t.Fatalf("unexpected LeafOverflowN: %d", stats.LeafOverflowN)
+// 		} else if stats.KeyN != 0 {
+// 			t.Fatalf("unexpected KeyN: %d", stats.KeyN)
+// 		} else if stats.Depth != 1 {
+// 			t.Fatalf("unexpected Depth: %d", stats.Depth)
+// 		} else if stats.BranchInuse != 0 {
+// 			t.Fatalf("unexpected BranchInuse: %d", stats.BranchInuse)
+// 		} else if stats.LeafInuse != 0 {
+// 			t.Fatalf("unexpected LeafInuse: %d", stats.LeafInuse)
+// 		}
 
-	if err := db.View(func(tx *bolt.Tx) error {
-		b := tx.Bucket([]byte("whozawhats"))
-		stats := b.Stats()
-		if stats.BranchPageN != 0 {
-			t.Fatalf("unexpected BranchPageN: %d", stats.BranchPageN)
-		} else if stats.BranchOverflowN != 0 {
-			t.Fatalf("unexpected BranchOverflowN: %d", stats.BranchOverflowN)
-		} else if stats.LeafPageN != 0 {
-			t.Fatalf("unexpected LeafPageN: %d", stats.LeafPageN)
-		} else if stats.LeafOverflowN != 0 {
-			t.Fatalf("unexpected LeafOverflowN: %d", stats.LeafOverflowN)
-		} else if stats.KeyN != 0 {
-			t.Fatalf("unexpected KeyN: %d", stats.KeyN)
-		} else if stats.Depth != 1 {
-			t.Fatalf("unexpected Depth: %d", stats.Depth)
-		} else if stats.BranchInuse != 0 {
-			t.Fatalf("unexpected BranchInuse: %d", stats.BranchInuse)
-		} else if stats.LeafInuse != 0 {
-			t.Fatalf("unexpected LeafInuse: %d", stats.LeafInuse)
-		}
+// 		if db.Info().PageSize == 4096 {
+// 			if stats.BranchAlloc != 0 {
+// 				t.Fatalf("unexpected BranchAlloc: %d", stats.BranchAlloc)
+// 			} else if stats.LeafAlloc != 0 {
+// 				t.Fatalf("unexpected LeafAlloc: %d", stats.LeafAlloc)
+// 			}
+// 		}
 
-		if db.Info().PageSize == 4096 {
-			if stats.BranchAlloc != 0 {
-				t.Fatalf("unexpected BranchAlloc: %d", stats.BranchAlloc)
-			} else if stats.LeafAlloc != 0 {
-				t.Fatalf("unexpected LeafAlloc: %d", stats.LeafAlloc)
-			}
-		}
+// 		if stats.BucketN != 1 {
+// 			t.Fatalf("unexpected BucketN: %d", stats.BucketN)
+// 		} else if stats.InlineBucketN != 1 {
+// 			t.Fatalf("unexpected InlineBucketN: %d", stats.InlineBucketN)
+// 		} else if stats.InlineBucketInuse != 16 {
+// 			t.Fatalf("unexpected InlineBucketInuse: %d", stats.InlineBucketInuse)
+// 		}
 
-		if stats.BucketN != 1 {
-			t.Fatalf("unexpected BucketN: %d", stats.BucketN)
-		} else if stats.InlineBucketN != 1 {
-			t.Fatalf("unexpected InlineBucketN: %d", stats.InlineBucketN)
-		} else if stats.InlineBucketInuse != 16 {
-			t.Fatalf("unexpected InlineBucketInuse: %d", stats.InlineBucketInuse)
-		}
+// 		return nil
+// 	}); err != nil {
+// 		t.Fatal(err)
+// 	}
+// }
 
-		return nil
-	}); err != nil {
-		t.Fatal(err)
-	}
-}
+// // Ensure a bucket can calculate stats.
+// func TestBucket_Stats_Nested(t *testing.T) {
+// 	db := MustOpenDB()
+// 	defer db.MustClose()
 
-// Ensure a bucket can calculate stats.
-func TestBucket_Stats_Nested(t *testing.T) {
-	db := MustOpenDB()
-	defer db.MustClose()
+// 	if err := db.Update(func(tx *bolt.Tx) error {
+// 		b, err := tx.CreateBucket([]byte("foo"))
+// 		if err != nil {
+// 			t.Fatal(err)
+// 		}
+// 		for i := 0; i < 100; i++ {
+// 			if err := b.Put([]byte(fmt.Sprintf("%02d", i)), []byte(fmt.Sprintf("%02d", i))); err != nil {
+// 				t.Fatal(err)
+// 			}
+// 		}
 
-	if err := db.Update(func(tx *bolt.Tx) error {
-		b, err := tx.CreateBucket([]byte("foo"))
-		if err != nil {
-			t.Fatal(err)
-		}
-		for i := 0; i < 100; i++ {
-			if err := b.Put([]byte(fmt.Sprintf("%02d", i)), []byte(fmt.Sprintf("%02d", i))); err != nil {
-				t.Fatal(err)
-			}
-		}
+// 		bar, err := b.CreateBucket([]byte("bar"))
+// 		if err != nil {
+// 			t.Fatal(err)
+// 		}
+// 		for i := 0; i < 10; i++ {
+// 			if err := bar.Put([]byte(strconv.Itoa(i)), []byte(strconv.Itoa(i))); err != nil {
+// 				t.Fatal(err)
+// 			}
+// 		}
 
-		bar, err := b.CreateBucket([]byte("bar"))
-		if err != nil {
-			t.Fatal(err)
-		}
-		for i := 0; i < 10; i++ {
-			if err := bar.Put([]byte(strconv.Itoa(i)), []byte(strconv.Itoa(i))); err != nil {
-				t.Fatal(err)
-			}
-		}
+// 		baz, err := bar.CreateBucket([]byte("baz"))
+// 		if err != nil {
+// 			t.Fatal(err)
+// 		}
+// 		for i := 0; i < 10; i++ {
+// 			if err := baz.Put([]byte(strconv.Itoa(i)), []byte(strconv.Itoa(i))); err != nil {
+// 				t.Fatal(err)
+// 			}
+// 		}
 
-		baz, err := bar.CreateBucket([]byte("baz"))
-		if err != nil {
-			t.Fatal(err)
-		}
-		for i := 0; i < 10; i++ {
-			if err := baz.Put([]byte(strconv.Itoa(i)), []byte(strconv.Itoa(i))); err != nil {
-				t.Fatal(err)
-			}
-		}
+// 		return nil
+// 	}); err != nil {
+// 		t.Fatal(err)
+// 	}
 
-		return nil
-	}); err != nil {
-		t.Fatal(err)
-	}
+// 	db.MustCheck()
 
-	db.MustCheck()
+// 	if err := db.View(func(tx *bolt.Tx) error {
+// 		b := tx.Bucket([]byte("foo"))
+// 		stats := b.Stats()
+// 		if stats.BranchPageN != 0 {
+// 			t.Fatalf("unexpected BranchPageN: %d", stats.BranchPageN)
+// 		} else if stats.BranchOverflowN != 0 {
+// 			t.Fatalf("unexpected BranchOverflowN: %d", stats.BranchOverflowN)
+// 		} else if stats.LeafPageN != 2 {
+// 			t.Fatalf("unexpected LeafPageN: %d", stats.LeafPageN)
+// 		} else if stats.LeafOverflowN != 0 {
+// 			t.Fatalf("unexpected LeafOverflowN: %d", stats.LeafOverflowN)
+// 		} else if stats.KeyN != 122 {
+// 			t.Fatalf("unexpected KeyN: %d", stats.KeyN)
+// 		} else if stats.Depth != 3 {
+// 			t.Fatalf("unexpected Depth: %d", stats.Depth)
+// 		} else if stats.BranchInuse != 0 {
+// 			t.Fatalf("unexpected BranchInuse: %d", stats.BranchInuse)
+// 		}
 
-	if err := db.View(func(tx *bolt.Tx) error {
-		b := tx.Bucket([]byte("foo"))
-		stats := b.Stats()
-		if stats.BranchPageN != 0 {
-			t.Fatalf("unexpected BranchPageN: %d", stats.BranchPageN)
-		} else if stats.BranchOverflowN != 0 {
-			t.Fatalf("unexpected BranchOverflowN: %d", stats.BranchOverflowN)
-		} else if stats.LeafPageN != 2 {
-			t.Fatalf("unexpected LeafPageN: %d", stats.LeafPageN)
-		} else if stats.LeafOverflowN != 0 {
-			t.Fatalf("unexpected LeafOverflowN: %d", stats.LeafOverflowN)
-		} else if stats.KeyN != 122 {
-			t.Fatalf("unexpected KeyN: %d", stats.KeyN)
-		} else if stats.Depth != 3 {
-			t.Fatalf("unexpected Depth: %d", stats.Depth)
-		} else if stats.BranchInuse != 0 {
-			t.Fatalf("unexpected BranchInuse: %d", stats.BranchInuse)
-		}
+// 		foo := 16            // foo (pghdr)
+// 		foo += 101 * 16      // foo leaf elements
+// 		foo += 100*2 + 100*2 // foo leaf key/values
+// 		foo += 3 + 16        // foo -> bar key/value
 
-		foo := 16            // foo (pghdr)
-		foo += 101 * 16      // foo leaf elements
-		foo += 100*2 + 100*2 // foo leaf key/values
-		foo += 3 + 16        // foo -> bar key/value
+// 		bar := 16      // bar (pghdr)
+// 		bar += 11 * 16 // bar leaf elements
+// 		bar += 10 + 10 // bar leaf key/values
+// 		bar += 3 + 16  // bar -> baz key/value
 
-		bar := 16      // bar (pghdr)
-		bar += 11 * 16 // bar leaf elements
-		bar += 10 + 10 // bar leaf key/values
-		bar += 3 + 16  // bar -> baz key/value
+// 		baz := 16      // baz (inline) (pghdr)
+// 		baz += 10 * 16 // baz leaf elements
+// 		baz += 10 + 10 // baz leaf key/values
 
-		baz := 16      // baz (inline) (pghdr)
-		baz += 10 * 16 // baz leaf elements
-		baz += 10 + 10 // baz leaf key/values
+// 		if stats.LeafInuse != foo+bar+baz {
+// 			t.Fatalf("unexpected LeafInuse: %d", stats.LeafInuse)
+// 		}
 
-		if stats.LeafInuse != foo+bar+baz {
-			t.Fatalf("unexpected LeafInuse: %d", stats.LeafInuse)
-		}
+// 		if db.Info().PageSize == 4096 {
+// 			if stats.BranchAlloc != 0 {
+// 				t.Fatalf("unexpected BranchAlloc: %d", stats.BranchAlloc)
+// 			} else if stats.LeafAlloc != 8192 {
+// 				t.Fatalf("unexpected LeafAlloc: %d", stats.LeafAlloc)
+// 			}
+// 		}
 
-		if db.Info().PageSize == 4096 {
-			if stats.BranchAlloc != 0 {
-				t.Fatalf("unexpected BranchAlloc: %d", stats.BranchAlloc)
-			} else if stats.LeafAlloc != 8192 {
-				t.Fatalf("unexpected LeafAlloc: %d", stats.LeafAlloc)
-			}
-		}
+// 		if stats.BucketN != 3 {
+// 			t.Fatalf("unexpected BucketN: %d", stats.BucketN)
+// 		} else if stats.InlineBucketN != 1 {
+// 			t.Fatalf("unexpected InlineBucketN: %d", stats.InlineBucketN)
+// 		} else if stats.InlineBucketInuse != baz {
+// 			t.Fatalf("unexpected InlineBucketInuse: %d", stats.InlineBucketInuse)
+// 		}
 
-		if stats.BucketN != 3 {
-			t.Fatalf("unexpected BucketN: %d", stats.BucketN)
-		} else if stats.InlineBucketN != 1 {
-			t.Fatalf("unexpected InlineBucketN: %d", stats.InlineBucketN)
-		} else if stats.InlineBucketInuse != baz {
-			t.Fatalf("unexpected InlineBucketInuse: %d", stats.InlineBucketInuse)
-		}
+// 		return nil
+// 	}); err != nil {
+// 		t.Fatal(err)
+// 	}
+// }
 
-		return nil
-	}); err != nil {
-		t.Fatal(err)
-	}
-}
+// // Ensure a large bucket can calculate stats.
+// func TestBucket_Stats_Large(t *testing.T) {
+// 	if testing.Short() {
+// 		t.Skip("skipping test in short mode.")
+// 	}
 
-// Ensure a large bucket can calculate stats.
-func TestBucket_Stats_Large(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping test in short mode.")
-	}
+// 	db := MustOpenDB()
+// 	defer db.MustClose()
 
-	db := MustOpenDB()
-	defer db.MustClose()
+// 	var index int
+// 	for i := 0; i < 100; i++ {
+// 		// Add bucket with lots of keys.
+// 		if err := db.Update(func(tx *bolt.Tx) error {
+// 			b, err := tx.CreateBucketIfNotExists([]byte("widgets"))
+// 			if err != nil {
+// 				t.Fatal(err)
+// 			}
+// 			for i := 0; i < 1000; i++ {
+// 				if err := b.Put([]byte(strconv.Itoa(index)), []byte(strconv.Itoa(index))); err != nil {
+// 					t.Fatal(err)
+// 				}
+// 				index++
+// 			}
+// 			return nil
+// 		}); err != nil {
+// 			t.Fatal(err)
+// 		}
+// 	}
 
-	var index int
-	for i := 0; i < 100; i++ {
-		// Add bucket with lots of keys.
-		if err := db.Update(func(tx *bolt.Tx) error {
-			b, err := tx.CreateBucketIfNotExists([]byte("widgets"))
-			if err != nil {
-				t.Fatal(err)
-			}
-			for i := 0; i < 1000; i++ {
-				if err := b.Put([]byte(strconv.Itoa(index)), []byte(strconv.Itoa(index))); err != nil {
-					t.Fatal(err)
-				}
-				index++
-			}
-			return nil
-		}); err != nil {
-			t.Fatal(err)
-		}
-	}
+// 	db.MustCheck()
 
-	db.MustCheck()
+// 	if err := db.View(func(tx *bolt.Tx) error {
+// 		stats := tx.Bucket([]byte("widgets")).Stats()
+// 		if stats.BranchPageN != 13 {
+// 			t.Fatalf("unexpected BranchPageN: %d", stats.BranchPageN)
+// 		} else if stats.BranchOverflowN != 0 {
+// 			t.Fatalf("unexpected BranchOverflowN: %d", stats.BranchOverflowN)
+// 		} else if stats.LeafPageN != 1196 {
+// 			t.Fatalf("unexpected LeafPageN: %d", stats.LeafPageN)
+// 		} else if stats.LeafOverflowN != 0 {
+// 			t.Fatalf("unexpected LeafOverflowN: %d", stats.LeafOverflowN)
+// 		} else if stats.KeyN != 100000 {
+// 			t.Fatalf("unexpected KeyN: %d", stats.KeyN)
+// 		} else if stats.Depth != 3 {
+// 			t.Fatalf("unexpected Depth: %d", stats.Depth)
+// 		} else if stats.BranchInuse != 25257 {
+// 			t.Fatalf("unexpected BranchInuse: %d", stats.BranchInuse)
+// 		} else if stats.LeafInuse != 2596916 {
+// 			t.Fatalf("unexpected LeafInuse: %d", stats.LeafInuse)
+// 		}
 
-	if err := db.View(func(tx *bolt.Tx) error {
-		stats := tx.Bucket([]byte("widgets")).Stats()
-		if stats.BranchPageN != 13 {
-			t.Fatalf("unexpected BranchPageN: %d", stats.BranchPageN)
-		} else if stats.BranchOverflowN != 0 {
-			t.Fatalf("unexpected BranchOverflowN: %d", stats.BranchOverflowN)
-		} else if stats.LeafPageN != 1196 {
-			t.Fatalf("unexpected LeafPageN: %d", stats.LeafPageN)
-		} else if stats.LeafOverflowN != 0 {
-			t.Fatalf("unexpected LeafOverflowN: %d", stats.LeafOverflowN)
-		} else if stats.KeyN != 100000 {
-			t.Fatalf("unexpected KeyN: %d", stats.KeyN)
-		} else if stats.Depth != 3 {
-			t.Fatalf("unexpected Depth: %d", stats.Depth)
-		} else if stats.BranchInuse != 25257 {
-			t.Fatalf("unexpected BranchInuse: %d", stats.BranchInuse)
-		} else if stats.LeafInuse != 2596916 {
-			t.Fatalf("unexpected LeafInuse: %d", stats.LeafInuse)
-		}
+// 		if db.Info().PageSize == 4096 {
+// 			if stats.BranchAlloc != 53248 {
+// 				t.Fatalf("unexpected BranchAlloc: %d", stats.BranchAlloc)
+// 			} else if stats.LeafAlloc != 4898816 {
+// 				t.Fatalf("unexpected LeafAlloc: %d", stats.LeafAlloc)
+// 			}
+// 		}
 
-		if db.Info().PageSize == 4096 {
-			if stats.BranchAlloc != 53248 {
-				t.Fatalf("unexpected BranchAlloc: %d", stats.BranchAlloc)
-			} else if stats.LeafAlloc != 4898816 {
-				t.Fatalf("unexpected LeafAlloc: %d", stats.LeafAlloc)
-			}
-		}
+// 		if stats.BucketN != 1 {
+// 			t.Fatalf("unexpected BucketN: %d", stats.BucketN)
+// 		} else if stats.InlineBucketN != 0 {
+// 			t.Fatalf("unexpected InlineBucketN: %d", stats.InlineBucketN)
+// 		} else if stats.InlineBucketInuse != 0 {
+// 			t.Fatalf("unexpected InlineBucketInuse: %d", stats.InlineBucketInuse)
+// 		}
 
-		if stats.BucketN != 1 {
-			t.Fatalf("unexpected BucketN: %d", stats.BucketN)
-		} else if stats.InlineBucketN != 0 {
-			t.Fatalf("unexpected InlineBucketN: %d", stats.InlineBucketN)
-		} else if stats.InlineBucketInuse != 0 {
-			t.Fatalf("unexpected InlineBucketInuse: %d", stats.InlineBucketInuse)
-		}
+// 		return nil
+// 	}); err != nil {
+// 		t.Fatal(err)
+// 	}
+// }
 
-		return nil
-	}); err != nil {
-		t.Fatal(err)
-	}
-}
-*/
 // Ensure that a bucket can write random keys and values across multiple transactions.
 func TestBucket_Put_Single(t *testing.T) {
 	if testing.Short() {
