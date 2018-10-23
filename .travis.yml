@@ -1,0 +1,11 @@
+language: go
+go:
+  - "1.11"
+sudo: true
+
+before_install:
+  - export GO111MODULE=on
+  - go mod download
+
+script:
+  - make test
