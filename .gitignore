@@ -11,5 +11,8 @@
 # Output of the go coverage tool, specifically when used with LiteIDE
 *.out
 
+# ignore all subdirectories in /vendor
+/vendor/*/*
+
 /.bin
 golangci-lint.sh*
